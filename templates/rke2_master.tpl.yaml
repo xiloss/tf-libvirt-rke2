@@ -1,0 +1,116 @@
+#cloud-config
+hostname: ${hostname}
+manage_etc_hosts: true
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin, sudo
+    shell: /bin/bash
+    lock_passwd: false
+    # password ubuntu
+    passwd: $6$LPWKaxcjd7Aihkd2$M6L1UfpvZQKH6fpJDCnVwF2O3K0S2z4v7O.6KrTRptS6gMJpQ3dqfA8IVHcWzF.1vjkMkqOZWjRYuNAPil2gb0
+    ssh-authorized-keys:
+      - ${ssh_public_key}
+package_update: true
+packages:
+  - curl
+  - nfs-common
+write_files:
+  - path: /etc/rancher/rke2/config.yaml
+    permissions: '0644'
+    owner: root:root
+    content: |
+      token: ${token}
+      %{ if cluster_init }
+      cluster-init: true
+      %{ else }
+      server: ${server_url}
+      %{ endif }
+      cni: ${cni}
+  - path: /root/.bash_aliases
+    permissions: '0644'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
+      export KUBECONFIG
+      #
+      source /root/.kube_completion.bash.inc
+      #
+      alias k=$(type -P kubectl)
+      complete -o default -F __start_kubectl k
+      #
+  - path: /root/rke2_setup.sh
+    permissions: '0770'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      until [[ -f /etc/rancher/rke2/rke2.yaml ]]
+      do
+        echo "[INFO] waiting for rke2.yaml kubeconfig file"
+        sleep 5
+      done
+      export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+      until [[ $( kubectl get ns -A >/dev/null 2>&1; echo $?) == 0 ]]
+      do
+        echo "[INFO] waiting for rke2 to be ready"
+        sleep 5
+      done
+      kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/tigera-operator.yaml
+      [[ $? == 0 ]] && echo "[INFO] Installed tigera operator for calico ${calico_version}" || echo "[ERROR] tigera operator for calico ${calico_version} NOT INSTALLED"
+      kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/custom-resources.yaml
+      [[ $? == 0 ]] && echo "[INFO] Installed crds for calico ${calico_version}" || echo "[ERROR] crds for calico ${calico_version} NOT INSTALLED"
+      %{ if install_kubevirt }
+      kubevirt_version=$(curl -sSfL https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+      kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/$kubevirt_version/kubevirt-operator.yaml
+      [[ $? == 0 ]] && echo "[INFO] Installed kubevirt operator $kubevirt_version" || echo "[ERROR] kubevirt operator $kubevirt_version NOT INSTALLED"
+      kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/$kubevirt_version/kubevirt-cr.yaml
+      [[ $? == 0 ]] && echo "[INFO] Installed kubevirt crds $kubevirt_version" || echo "[ERROR] kubevirt crds $kubevirt_version NOT INSTALLED"
+      /root/krew_setup.sh && rm -f /root/krew_setup.sh
+      /root/virtctl_setup.sh && rm -f /root/virtctl_setup.sh
+      %{ endif }
+  - path: /root/krew_setup.sh
+    permissions: '0770'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      set -x
+      cd "$(mktemp -d)"
+      OS="$(uname | tr '[:upper:]' '[:lower:]')"
+      ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
+      KREW="krew-$${OS}_$${ARCH}"
+      curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/$${KREW}.tar.gz"
+      tar zxvf "$${KREW}.tar.gz"
+      mv ./"$${KREW}" /usr/local/bin/kubectl-krew
+      kubectl krew install virt
+  - path: /root/virtctl_setup.sh
+    permissions: '0770'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      source /root/.bash_aliases
+      until [[ $(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}") == Deployed ]]
+      do
+        echo "[INFO] waiting for kubevirt to be ready, this may take long ..."
+        sleep 60
+      done
+      VERSION=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.observedKubeVirtVersion}")
+      ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/')
+      echo "[INFO] Installing virtctl for kubevirt $VERSION on $ARCH"
+      curl -sSL -o virtctl https://github.com/kubevirt/kubevirt/releases/download/$${VERSION}/virtctl-$${VERSION}-$${ARCH}
+      chmod +x virtctl
+      mv virtctl /usr/local/bin
+      #
+runcmd:
+  - curl -sSfL https://get.rke2.io | INSTALL_RKE2_TYPE=server INSTALL_RKE2_VERSION=${rke2_version} RKE2_CNI=${cni} sh -
+  - systemctl enable rke2-server.service
+  - systemctl start rke2-server.service
+  - echo "[INFO] RKE2 server node installed and started."
+  - KUBECTL_STABLE=$(curl -L -s https://dl.k8s.io/release/stable.txt) &&
+    curl -sSLO "https://dl.k8s.io/release/$${KUBECTL_STABLE}/bin/linux/amd64/kubectl" &&
+    chmod +x kubectl &&
+    mv kubectl /usr/local/bin &&
+    echo "[INFO] kubectl $${KUBECTL_STABLE} binary installed." &&
+    kubectl completion bash > /root/.kube_completion.bash.inc
+  - /root/rke2_setup.sh && rm -f /root/rke2_setup.sh
+#

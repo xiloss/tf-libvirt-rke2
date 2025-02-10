@@ -1,0 +1,29 @@
+#cloud-config
+hostname: ${hostname}
+manage_etc_hosts: true
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin, sudo
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: $6$LPWKaxcjd7Aihkd2$M6L1UfpvZQKH6fpJDCnVwF2O3K0S2z4v7O.6KrTRptS6gMJpQ3dqfA8IVHcWzF.1vjkMkqOZWjRYuNAPil2gb0
+    ssh-authorized-keys:
+      - ${ssh_public_key}
+package_update: true
+packages:
+  - curl
+  - nfs-common
+write_files:
+  - path: /etc/rancher/rke2/config.yaml
+    permissions: '0644'
+    owner: root:root
+    content: |
+      server: ${server_url}
+      token: ${token}
+runcmd:
+  - curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=${rke2_version} INSTALL_RKE2_TYPE=agent sh -
+  - systemctl enable rke2-agent.service
+  - systemctl start rke2-agent.service
+  - echo "RKE2 agent node installed and joined to the cluster."
+#
