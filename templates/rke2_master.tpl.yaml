@@ -15,6 +15,7 @@ package_update: true
 packages:
   - curl
   - nfs-common
+  - open-iscsi
 write_files:
   - path: /etc/rancher/rke2/config.yaml
     permissions: '0644'
@@ -56,16 +57,30 @@ write_files:
         echo "[INFO] waiting for rke2 to be ready"
         sleep 5
       done
+      %{ if cluster_init }
       kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/tigera-operator.yaml
       [[ $? == 0 ]] && echo "[INFO] Installed tigera operator for calico ${calico_version}" || echo "[ERROR] tigera operator for calico ${calico_version} NOT INSTALLED"
       kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/custom-resources.yaml
       [[ $? == 0 ]] && echo "[INFO] Installed crds for calico ${calico_version}" || echo "[ERROR] crds for calico ${calico_version} NOT INSTALLED"
+      kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.31/deploy/local-path-storage.yaml
+      # LOCAL-PATH STORAGE CLASS IS NOT INSTALLED BY DEFAULT
+      [[ $? == 0 ]] && echo "[INFO] Installed local path storage class version v0.0.31" || echo "[ERROR] local path storage class v0.0.31 NOT INSTALLED"
       %{ if install_kubevirt }
+      # KUBEVIRT INSTALLATION
       kubevirt_version=$(curl -sSfL https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
       kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/$kubevirt_version/kubevirt-operator.yaml
       [[ $? == 0 ]] && echo "[INFO] Installed kubevirt operator $kubevirt_version" || echo "[ERROR] kubevirt operator $kubevirt_version NOT INSTALLED"
       kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/$kubevirt_version/kubevirt-cr.yaml
       [[ $? == 0 ]] && echo "[INFO] Installed kubevirt crds $kubevirt_version" || echo "[ERROR] kubevirt crds $kubevirt_version NOT INSTALLED"
+      # CONTAINER DATA IMPORTER INSTALLATION
+      kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/v1.61.1/cdi-operator.yaml
+      [[ $? == 0 ]] && echo "[INFO] Installed container-data-importer operator v1.61.1" || echo "[ERROR] container-data-importer operator v1.61.1 NOT INSTALLED"
+      kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/v1.61.1/cdi-cr.yaml
+      [[ $? == 0 ]] && echo "[INFO] Installed container-data-importer crd v1.61.1" || echo "[ERROR] container-data-importer crd v1.61.1 NOT INSTALLED"
+      %{ endif }
+      %{ endif }
+      /root/longhorn_setup.sh && rm -f /root/longhorn_setup.sh
+      %{ if install_kubevirt }
       /root/krew_setup.sh && rm -f /root/krew_setup.sh
       /root/virtctl_setup.sh && rm -f /root/virtctl_setup.sh
       %{ endif }
@@ -101,16 +116,39 @@ write_files:
       chmod +x virtctl
       mv virtctl /usr/local/bin
       #
+  - path: /root/longhorn_setup.sh
+    permissions: '0770'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      helm repo add longhorn https://charts.longhorn.io
+      helm repo update
+      helm upgrade --install longhorn longhorn/longhorn \
+        --namespace longhorn-system \
+        --create-namespace \
+        --set defaultSettings.defaultDataPath="/var/lib/longhorn" \
+        --set service.ui.type=NodePort
+      #
 runcmd:
+  - systemctl enable --now iscsid
   - curl -sSfL https://get.rke2.io | INSTALL_RKE2_TYPE=server INSTALL_RKE2_VERSION=${rke2_version} RKE2_CNI=${cni} sh -
   - systemctl enable rke2-server.service
   - systemctl start rke2-server.service
   - echo "[INFO] RKE2 server node installed and started."
+  %{ if install_custom_kubectl }
   - KUBECTL_STABLE=$(curl -L -s https://dl.k8s.io/release/stable.txt) &&
     curl -sSLO "https://dl.k8s.io/release/$${KUBECTL_STABLE}/bin/linux/amd64/kubectl" &&
     chmod +x kubectl &&
     mv kubectl /usr/local/bin &&
     echo "[INFO] kubectl $${KUBECTL_STABLE} binary installed." &&
+  %{else}
+  - ln -sn $(find /var/lib/rancher/rke2/data/ -name kubectl) /usr/local/bin/kubectl
+  %{ endif }
     kubectl completion bash > /root/.kube_completion.bash.inc
+  - curl -Sso /tmp/helm-v3.14.3-linux-amd64.tar.gz https://get.helm.sh/helm-v3.14.3-linux-amd64.tar.gz &&
+    tar xzf /tmp/helm-v3.14.3-linux-amd64.tar.gz -C /tmp &&
+    sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm-v3.14.3 &&
+    sudo ln -sfn /usr/local/bin/helm-v3.14.3 /usr/local/bin/helm &&
+    echo "[INFO] helm v3.14.3 binary installed."
   - /root/rke2_setup.sh && rm -f /root/rke2_setup.sh
 #

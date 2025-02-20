@@ -4,6 +4,7 @@ locals {
   calico_version   = var.stack_config.calico_version
   rke2_cni         = var.stack_config.rke2_cni
   install_kubevirt = var.stack_config.install_kubevirt
+  install_custom_kubectl = var.stack_config.install_custom_kubectl
 
 }
 # cloud-init user-data for master nodes template
@@ -20,6 +21,7 @@ data "template_file" "rke2_master_cloudinit" {
     rke2_version     = local.rke2_version
     calico_version   = local.calico_version
     install_kubevirt = local.install_kubevirt
+    install_custom_kubectl = local.install_custom_kubectl
   }
 }
 #

@@ -4,6 +4,7 @@ variable "stack_config" {
     calico_version                      = string
     rke2_cni                            = string
     install_kubevirt                    = bool
+    install_custom_kubectl = bool
     libvirt_network_name                = string
     libvirt_network_mode                = string
     libvirt_network_domain              = string
@@ -35,6 +36,7 @@ variable "stack_config" {
     calico_version                      = "v3.29.2"
     rke2_cni                            = "none"
     install_kubevirt                    = true
+    install_custom_kubectl = true
     libvirt_network_name                = "rke2_network"
     libvirt_network_mode                = "nat"
     libvirt_network_domain              = "rke2.local"
@@ -46,7 +48,7 @@ variable "stack_config" {
     libvirt_cloudinit_disk_agents_name  = "rke2-agent-init"
     libvirt_volume_masters_disk_name    = "rke2-master-disk"
     libvirt_volume_masters_disk_pool    = "rke2"
-    libvirt_volume_masters_disk_size    = 21474836480 # 20GB 53687091200 # 50GB
+    libvirt_volume_masters_disk_size    = 53687091200 # 50GB 21474836480 # 20GB
     libvirt_volume_masters_disk_format  = "qcow2"
     libvirt_network_masters_ips         = ["192.168.122.10", "192.168.122.11", "192.168.122.12"]
     libvirt_domain_masters_name         = "rke2-master"
@@ -54,7 +56,7 @@ variable "stack_config" {
     libvirt_domain_masters_vcpu         = 4
     libvirt_volume_agents_disk_name     = "rke2-agent-disk"
     libvirt_volume_agents_disk_pool     = "default"
-    libvirt_volume_agents_disk_size     = 21474836480 # 20GB 42949672960 # 40GB
+    libvirt_volume_agents_disk_size     = 42949672960 # 40GB 21474836480 # 20GB 
     libvirt_volume_agents_disk_format   = "qcow2"
     libvirt_network_agents_ips          = ["192.168.122.13", "192.168.122.14"]
     libvirt_domain_agents_name          = "rke2-agent"

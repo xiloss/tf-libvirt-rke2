@@ -14,6 +14,7 @@ package_update: true
 packages:
   - curl
   - nfs-common
+  - open-iscsi
 write_files:
   - path: /etc/rancher/rke2/config.yaml
     permissions: '0644'
@@ -22,6 +23,7 @@ write_files:
       server: ${server_url}
       token: ${token}
 runcmd:
+  - systemctl enable --now iscsid
   - curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=${rke2_version} INSTALL_RKE2_TYPE=agent sh -
   - systemctl enable rke2-agent.service
   - systemctl start rke2-agent.service
