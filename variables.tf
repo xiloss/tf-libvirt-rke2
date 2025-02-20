@@ -52,15 +52,15 @@ variable "stack_config" {
     libvirt_volume_masters_disk_format  = "qcow2"
     libvirt_network_masters_ips         = ["192.168.122.10", "192.168.122.11", "192.168.122.12"]
     libvirt_domain_masters_name         = "rke2-master"
-    libvirt_domain_masters_memory       = 8192 # 4GB
+    libvirt_domain_masters_memory       = 16384 # 4GB
     libvirt_domain_masters_vcpu         = 4
     libvirt_volume_agents_disk_name     = "rke2-agent-disk"
     libvirt_volume_agents_disk_pool     = "default"
-    libvirt_volume_agents_disk_size     = 42949672960 # 40GB 21474836480 # 20GB 
+    libvirt_volume_agents_disk_size     = 85899345920 # 40GB 21474836480 # 20GB 
     libvirt_volume_agents_disk_format   = "qcow2"
     libvirt_network_agents_ips          = ["192.168.122.13", "192.168.122.14"]
     libvirt_domain_agents_name          = "rke2-agent"
-    libvirt_domain_agents_memory        = 4096 # 4GB
-    libvirt_domain_agents_vcpu          = 2
+    libvirt_domain_agents_memory        = 16384 # 4GB
+    libvirt_domain_agents_vcpu          = 4
   }
 }
