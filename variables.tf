@@ -56,7 +56,7 @@ variable "stack_config" {
     libvirt_domain_masters_vcpu         = 4
     libvirt_volume_agents_disk_name     = "rke2-agent-disk"
     libvirt_volume_agents_disk_pool     = "default"
-    libvirt_volume_agents_disk_size     = 85899345920 # 40GB 21474836480 # 20GB 
+    libvirt_volume_agents_disk_size     = 128849018880 # 100GB 21474836480 # 20GB 
     libvirt_volume_agents_disk_format   = "qcow2"
     libvirt_network_agents_ips          = ["192.168.122.13", "192.168.122.14"]
     libvirt_domain_agents_name          = "rke2-agent"

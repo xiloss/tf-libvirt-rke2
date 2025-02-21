@@ -101,3 +101,8 @@ NOTE: the referenced IP address is the local address we want to use to reach the
 Once the changes are committed, restart the bind service.
 
 `systemctl restart bind9`
+
+
+# Setup and provisioning
+
+1. be sure to edit the variables.tf file with your consistent values. It could be necessary to review the network configuration, while the size of the virtual disks and machines resources should be the minimal requirement to run the demo.

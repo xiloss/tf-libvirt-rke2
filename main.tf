@@ -29,12 +29,12 @@ locals {
   libvirt_domain_agents_vcpu          = var.stack_config.libvirt_domain_agents_vcpu
 }
 #
-# A pool for all cluster volumes
+# A pool for all cluster nodes volumes
 resource "libvirt_pool" "rke2" {
   name = "rke2"
   type = "dir"
   target {
-    path = "/home/xiloss/cluster_storage"
+    path = "/home/xiloss/2tb/cluster_storage"
   }
 }
 #
