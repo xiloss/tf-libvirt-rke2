@@ -78,8 +78,8 @@ write_files:
       kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/v1.61.1/cdi-cr.yaml
       [[ $? == 0 ]] && echo "[INFO] Installed container-data-importer crd v1.61.1" || echo "[ERROR] container-data-importer crd v1.61.1 NOT INSTALLED"
       %{ endif }
-      %{ endif }
       /root/longhorn_setup.sh && rm -f /root/longhorn_setup.sh
+      %{ endif }
       %{ if install_kubevirt }
       /root/krew_setup.sh && rm -f /root/krew_setup.sh
       /root/virtctl_setup.sh && rm -f /root/virtctl_setup.sh
